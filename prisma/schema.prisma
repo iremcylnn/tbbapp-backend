@@ -30,13 +30,13 @@ model Category {
 }
 
 model Place {
-  id          Int      @id @default(autoincrement())
-  districtId  Int      @map("ilce_id")
-  categoryId  Int      @map("harita_filtre_id")
-  name        String   @map("konum_adi")
-  latitude    Float    @map("enlem")
-  longitude   Float    @map("boylam")
-  description String?  @map("aciklama")
+  id          Int     @id @default(autoincrement())
+  districtId  Int     @map("ilce_id")
+  categoryId  Int     @map("harita_filtre_id")
+  name        String  @map("konum_adi")
+  latitude    Float   @map("enlem")
+  longitude   Float   @map("boylam")
+  description String? @map("aciklama")
 
   district District @relation(fields: [districtId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
@@ -44,14 +44,21 @@ model Place {
   @@map("koordinatlar")
 }
 
+enum FeedbackKind {
+  complaint
+  request
+
+  @@map("sikayet_talep_turu")
+}
+
 model FeedbackSubmission {
-  id          Int      @id @default(autoincrement())
-  kind        String
+  id          Int          @id @default(autoincrement())
+  kind        FeedbackKind
   description String
-  placeId     Int?     @map("koordinat_id")
-  latitude    Float?   @map("enlem")
-  longitude   Float?   @map("boylam")
-  createdAt   DateTime @default(now()) @map("olusturulma_tarihi")
+  placeId     Int?         @map("koordinat_id")
+  latitude    Float?       @map("enlem")
+  longitude   Float?       @map("boylam")
+  createdAt   DateTime     @default(now()) @map("olusturulma_tarihi")
 
   @@map("sikayet_talepler")
 }
