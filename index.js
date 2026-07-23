@@ -4,12 +4,15 @@ if (!process.env.DATABASE_URL) {
   console.error('HATA: DATABASE_URL ortam değişkeni tanımlı değil. .env dosyasını kontrol edin (bkz. .env.example).');
   process.exit(1);
 }
+if (!process.env.ADMIN_API_KEY) {
+  console.error('HATA: ADMIN_API_KEY ortam değişkeni tanımlı değil. .env dosyasını kontrol edin (bkz. .env.example).');
+  process.exit(1);
+}
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 
 const prisma = require('./lib/prisma');
 const districtsRouter = require('./routes/districts');
@@ -35,16 +38,8 @@ app.get('/', (req, res) => {
 app.use('/districts', districtsRouter);
 app.use('/categories', categoriesRouter);
 app.use('/places', placesRouter);
-
-// Yazma uç noktaları herkese açık ve kimlik doğrulaması yok; spam/abuse'a karşı sınırlandırılıyor.
-const writeLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/feedback', writeLimiter, feedbackRouter);
-app.use('/new-place-requests', writeLimiter, newPlaceRequestsRouter);
+app.use('/feedback', feedbackRouter);
+app.use('/new-place-requests', newPlaceRequestsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Bulunamadı' });

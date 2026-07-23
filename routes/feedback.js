@@ -1,5 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
+const requireAdmin = require('../lib/adminAuth');
+const { publicWriteLimiter } = require('../lib/rateLimit');
 const { parsePositiveInt, isFiniteNumber } = require('../lib/validate');
 
 const router = express.Router();
@@ -7,8 +9,27 @@ const router = express.Router();
 // map.md: MapFeedbackSubmission.kind sadece 'complaint' | 'request' olabilir (Şikayet/Talep)
 const VALID_KINDS = ['complaint', 'request'];
 
+// GET /feedback?kind=complaint - şikayet/talepleri listele (admin)
+router.get('/', requireAdmin, async (req, res) => {
+  const { kind } = req.query;
+  const where = {};
+
+  if (kind !== undefined) {
+    if (!VALID_KINDS.includes(kind)) {
+      return res.status(400).json({ error: `kind şunlardan biri olmalıdır: ${VALID_KINDS.join(', ')}` });
+    }
+    where.kind = kind;
+  }
+
+  const feedback = await prisma.feedbackSubmission.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(feedback);
+});
+
 // POST /feedback - yeni şikayet/talep kaydet
-router.post('/', async (req, res) => {
+router.post('/', publicWriteLimiter, async (req, res) => {
   const { kind, description, placeId, latitude, longitude } = req.body;
 
   if (!VALID_KINDS.includes(kind)) {

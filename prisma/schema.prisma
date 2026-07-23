@@ -63,15 +63,23 @@ model FeedbackSubmission {
   @@map("sikayet_talepler")
 }
 
+enum NewPlaceStatus {
+  pending
+  approved
+  rejected
+
+  @@map("yeni_yer_talep_durumu")
+}
+
 model NewPlaceSubmission {
-  id          Int      @id @default(autoincrement())
-  name        String   @map("konum_adi")
-  categoryId  Int?     @map("harita_filtre_id")
+  id          Int            @id @default(autoincrement())
+  name        String         @map("konum_adi")
+  categoryId  Int?           @map("harita_filtre_id")
   description String
-  latitude    Float    @map("enlem")
-  longitude   Float    @map("boylam")
-  status      String   @default("pending")
-  createdAt   DateTime @default(now()) @map("olusturulma_tarihi")
+  latitude    Float          @map("enlem")
+  longitude   Float          @map("boylam")
+  status      NewPlaceStatus @default(pending)
+  createdAt   DateTime       @default(now()) @map("olusturulma_tarihi")
 
   @@map("yeni_yer_talepleri")
 }
