@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model District {
+  id     Int     @id @default(autoincrement())
+  name   String  @map("ilce")
+  places Place[]
+
+  @@map("ilceler")
+}
+
+model Category {
+  id     Int     @id @default(autoincrement())
+  title  String  @map("baslik")
+  order  Int     @map("sira")
+  places Place[]
+
+  @@map("harita_filtre")
+}
+
+model Place {
+  id          Int      @id @default(autoincrement())
+  districtId  Int      @map("ilce_id")
+  categoryId  Int      @map("harita_filtre_id")
+  name        String   @map("konum_adi")
+  latitude    Float    @map("enlem")
+  longitude   Float    @map("boylam")
+  description String?  @map("aciklama")
+
+  district District @relation(fields: [districtId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@map("koordinatlar")
+}
+
+model FeedbackSubmission {
+  id          Int      @id @default(autoincrement())
+  kind        String
+  description String
+  placeId     Int?     @map("koordinat_id")
+  latitude    Float?   @map("enlem")
+  longitude   Float?   @map("boylam")
+  createdAt   DateTime @default(now()) @map("olusturulma_tarihi")
+
+  @@map("sikayet_talepler")
+}
+
+model NewPlaceSubmission {
+  id          Int      @id @default(autoincrement())
+  name        String   @map("konum_adi")
+  categoryId  Int?     @map("harita_filtre_id")
+  description String
+  latitude    Float    @map("enlem")
+  longitude   Float    @map("boylam")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("olusturulma_tarihi")
+
+  @@map("yeni_yer_talepleri")
+}
