@@ -22,8 +22,23 @@ model User {
 
   feedbackSubmissions FeedbackSubmission[]
   newPlaceSubmissions NewPlaceSubmission[]
+  passwordResetCodes  PasswordResetCode[]
 
   @@map("kullanicilar")
+}
+
+model PasswordResetCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("kullanici_id")
+  codeHash  String    @map("kod_hash")
+  expiresAt DateTime  @map("son_kullanma_tarihi")
+  usedAt    DateTime? @map("kullanilma_tarihi")
+  createdAt DateTime  @default(now()) @map("olusturulma_tarihi")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("sifre_sifirlama_kodlari")
 }
 
 model District {

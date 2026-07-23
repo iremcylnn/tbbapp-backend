@@ -60,6 +60,24 @@ Vatandaş kaydı oluşturur, giriş için kullanılacak JWT'yi döner.
 
 Token, sonraki isteklerde `Authorization: Bearer <token>` header'ı olarak gönderilir; 30 gün geçerli.
 
+### `POST /auth/forgot-password`
+
+| Alan | Tip | Zorunlu |
+|---|---|---|
+| `email` | geçerli email | evet |
+
+Email kayıtlıysa 6 haneli, 15 dakika geçerli bir sıfırlama kodu üretip ([lib/mailer.js](lib/mailer.js) üzerinden Resend ile) email'e gönderir. Email kayıtlı olsun ya da olmasın her zaman aynı `200 { "message": "..." }` yanıtını döner — enumeration'ı zorlaştırmak için (login'deki `DUMMY_HASH` ile aynı prensip). `RESEND_API_KEY` tanımlı değilse (yerel geliştirme) kod gerçek email yerine sunucu konsoluna yazılır.
+
+### `POST /auth/reset-password`
+
+| Alan | Tip | Zorunlu |
+|---|---|---|
+| `email` | geçerli email | evet |
+| `code` | 6 haneli string | evet |
+| `password` | string, ≥8 karakter | evet |
+
+Kod geçerli, süresi dolmamış ve daha önce kullanılmamışsa şifreyi günceller ve kodu tüketir. Kod yanlış/süresi dolmuş/zaten kullanılmışsa (veya email kayıtlı değilse) `400 { "error": "Kod geçersiz veya süresi dolmuş" }` döner — hangisinin doğru olduğu ayırt edilmez.
+
 ### `GET /districts`
 
 İlçe listesini döner. → `MapDistrict[]`
