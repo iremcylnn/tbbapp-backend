@@ -95,6 +95,15 @@ router.patch('/:id', requireAdmin, async (req, res) => {
 
     if (status === 'rejected') {
       const updated = await tx.newPlaceSubmission.findUnique({ where: { id } });
+      // Aynı transaction'da: red kaydı ile audit log'u ayıramayacak şekilde birlikte yazılır.
+      await tx.adminActionLog.create({
+        data: {
+          action: 'new_place_request.rejected',
+          targetType: 'NewPlaceSubmission',
+          targetId: id,
+          ipAddress: req.ip,
+        },
+      });
       return { updated };
     }
 
@@ -109,6 +118,15 @@ router.patch('/:id', requireAdmin, async (req, res) => {
       },
     });
     const updated = await tx.newPlaceSubmission.findUnique({ where: { id } });
+    await tx.adminActionLog.create({
+      data: {
+        action: 'new_place_request.approved',
+        targetType: 'NewPlaceSubmission',
+        targetId: id,
+        ipAddress: req.ip,
+        metadata: { placeId: place.id, districtId: resolvedDistrictId, categoryId: resolvedCategoryId },
+      },
+    });
     return { updated, place };
   });
 

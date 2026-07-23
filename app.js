@@ -13,6 +13,7 @@ const categoriesRouter = require('./routes/categories');
 const placesRouter = require('./routes/places');
 const feedbackRouter = require('./routes/feedback');
 const newPlaceRequestsRouter = require('./routes/newPlaceRequests');
+const adminActionsRouter = require('./routes/adminActions');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
@@ -44,6 +45,7 @@ app.use('/categories', categoriesRouter);
 app.use('/places', placesRouter);
 app.use('/feedback', feedbackRouter);
 app.use('/new-place-requests', newPlaceRequestsRouter);
+app.use('/admin-actions', adminActionsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Bulunamadı' });

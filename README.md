@@ -33,7 +33,7 @@ npm test
 - `POST /feedback` ve `POST /new-place-requests` IP başına 15 dakikada 20 istekle sınırlıdır (spam/abuse koruması); limit aşılırsa `429` döner.
 - `GET /districts`, `GET /categories`, `GET /places`, `GET /places/:id` ve `POST /auth/*` herkese açık, kimlik doğrulama gerektirmez.
 - **Vatandaş oturumu:** `POST /feedback` ve `POST /new-place-requests` giriş yapmış bir kullanıcı gerektirir — `Authorization: Bearer <token>` header'ı ister (bkz. aşağıdaki `/auth` bölümü); eksik/geçersizse `401` döner. Kaydı oluşturan kullanıcı token'dan çözülür, body'de ayrıca isim/kimlik bilgisi gönderilmez.
-- **Admin endpoint'leri** (`GET /feedback`, `GET /new-place-requests`, `PATCH /new-place-requests/:id`) `x-admin-key` header'ında `ADMIN_API_KEY` ile eşleşen bir değer ister; eksik/yanlışsa `401 { "error": "Yetkisiz" }` döner. Bu, vatandaş oturumundan (JWT) ayrı bir katman — admin tarafında hâlâ kullanıcı/rol sistemi yok, tek paylaşılan bir sır.
+- **Admin endpoint'leri** (`GET /feedback`, `GET /new-place-requests`, `PATCH /new-place-requests/:id`, `GET /admin-actions`) `x-admin-key` header'ında `ADMIN_API_KEY` ile eşleşen bir değer ister; eksik/yanlışsa `401 { "error": "Yetkisiz" }` döner. Bu, vatandaş oturumundan (JWT) ayrı bir katman — admin tarafında hâlâ kullanıcı/rol sistemi yok, tek paylaşılan bir sır.
 
 ## Endpoint'ler
 
@@ -187,6 +187,25 @@ Başarılı istek `201` ile oluşturulan kaydı döner. Token yoksa/geçersizse 
 - `status: "rejected"` → sadece kaydın `status`'unu günceller, `200` ile güncel öneriyi döner.
 - `status: "approved"` → `districtId`/`categoryId` doğrulanır (var olmalı), ardından tek bir transaction içinde öneri verilerinden gerçek bir `Place` (`koordinatlar`) satırı oluşturulur ve öneri `approved` olarak işaretlenir. `200` ile `{ "submission": {...}, "place": {...} }` döner.
 - Geçersiz `districtId`/`categoryId` (yok/silinmiş) → `400`.
+- Karar (onay/red) aynı transaction içinde bir `AdminActionLog` satırı da bırakır — bkz. `GET /admin-actions`.
+
+### `GET /admin-actions` — admin
+
+`x-admin-key` gerektirir. Admin eylem kayıtlarını (şu an sadece onay/red kararları) `createdAt` azalan sırayla döner. Paylaşılan `x-admin-key` gerçek bir admin kimliği taşımadığı için "kim" değil, "ne zaman + hangi IP'den + ne yapıldı" bilgisini verir — gerçek admin hesaplarına geçilene kadarki ara adım (bkz. `prisma/schema.prisma`'daki `AdminActionLog` yorumu).
+
+| Query param | Tip | Açıklama |
+|---|---|---|
+| `targetType` | string, opsiyonel | Örn. `NewPlaceSubmission` |
+| `targetId` | pozitif tamsayı, opsiyonel | Belirli bir kaydın geçmişini filtreler |
+
+```json
+[{
+  "id": 1, "action": "new_place_request.approved", "targetType": "NewPlaceSubmission",
+  "targetId": 5, "ipAddress": "127.0.0.1",
+  "metadata": { "placeId": 12, "districtId": 1, "categoryId": 1 },
+  "createdAt": "2026-07-23T12:00:00.000Z"
+}]
+```
 
 ## Veritabanı şeması
 
@@ -201,6 +220,9 @@ Bkz. [prisma/schema.prisma](prisma/schema.prisma). Türkçe tablo/kolon adları 
 - **`docker-compose.yml`**'e Postgres için `healthcheck` eklendi.
 - **`GET /` sağlık kontrolü artık gerçekten DB'ye ping atıyor** (`SELECT 1`) — eskiden DB down olsa bile `200 ok` dönerdi, artık `503` dönüyor.
 - **Vatandaş kullanıcı sistemi eklendi** (`User` modeli, `POST /auth/register`/`POST /auth/login`, JWT tabanlı `requireAuth`) — `POST /feedback` ve `POST /new-place-requests` artık giriş yapmayı zorunlu kılıyor, kaydı oluşturan kullanıcı token'dan otomatik bağlanıyor; admin artık kimin şikayet/öneri gönderdiğini görebiliyor.
+- **Şifre sıfırlama akışı eklendi** (`POST /auth/forgot-password`/`POST /auth/reset-password`, `PasswordResetCode` modeli) — Resend ile 6 haneli, 15 dakika geçerli, bcrypt-hash'li tek kullanımlık kod; yeni kod istendiğinde eski kullanılmamış kodlar otomatik geçersiz kılınır.
+- **Admin eylem audit log'u eklendi** (`AdminActionLog` modeli, `GET /admin-actions`) — `PATCH /new-place-requests/:id` her onay/red kararında aynı transaction içinde bir kayıt bırakır (eylem + hedef + IP + zaman); gerçek admin hesaplarına geçilene kadarki ara adım, bkz. yukarıdaki "Henüz yok" notu.
+- **Auth ve içerik yazma endpoint'leri için rate limiter'lar ayrıldı** (`lib/rateLimit.js`) — eskiden `/auth/*` ile `/feedback`,`/new-place-requests` aynı paylaşımlı sayacı kullanıyordu, birkaç yanlış şifre denemesi alakasız şekilde şikayet/öneri gönderme hakkını da tüketebiliyordu.
 
 ## Yük altında dayanıklılık
 
@@ -221,7 +243,7 @@ npm run loadtest
 
 ## Henüz yok (bilinen kapsam dışı)
 
-- Admin tarafında gerçek kullanıcı/rol sistemi yok — tek paylaşılan bir API key ile korunuyor (vatandaş tarafında artık gerçek hesaplar var, bkz. yukarısı).
-- Şifre sıfırlama / email doğrulama akışı yok — kayıt anında hesap doğrudan aktif olur.
+- Admin tarafında gerçek kullanıcı/rol sistemi yok — tek paylaşılan bir API key ile korunuyor (vatandaş tarafında artık gerçek hesaplar var, bkz. yukarısı). `AdminActionLog` bunun için bir audit-trail temeli atıyor ama "kim" değil "ne zaman + hangi IP'den" bilgisini taşıyor; gerçek hesaplara geçilince tabloya bir `adminId` eklemek yeterli olur.
+- Email doğrulama akışı yok — kayıt anında hesap doğrudan aktif olur (şifre sıfırlama artık var, bkz. yukarısı).
 - Access/refresh token ayrımı yok — tek, 30 gün geçerli bir JWT var; token çalınırsa süresi dolana kadar geçerli kalır (revoke mekanizması yok).
 - Cache ve rate limiter bellek içi (in-memory); birden fazla instance ile yatay ölçeklendirilirse paylaşımlı bir store (ör. Redis) gerekir.

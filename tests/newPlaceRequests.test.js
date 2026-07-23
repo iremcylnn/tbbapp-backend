@@ -22,6 +22,9 @@ afterAll(async () => {
     await prisma.place.deleteMany({ where: { id: { in: createdPlaceIds } } });
   }
   if (createdSubmissionIds.length) {
+    await prisma.adminActionLog.deleteMany({
+      where: { targetType: 'NewPlaceSubmission', targetId: { in: createdSubmissionIds } },
+    });
     await prisma.newPlaceSubmission.deleteMany({ where: { id: { in: createdSubmissionIds } } });
   }
   if (createdUserIds.length) {
@@ -109,7 +112,7 @@ describe('PATCH /new-place-requests/:id', () => {
     expect(res.status).toBe(401);
   });
 
-  it('reddetme akışı: status rejected olur', async () => {
+  it('reddetme akışı: status rejected olur ve bir audit log kaydı oluşur', async () => {
     const created = await createSubmission({ name: 'Reddedilecek' });
 
     const res = await request(app)
@@ -119,9 +122,17 @@ describe('PATCH /new-place-requests/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('rejected');
+
+    const logs = await request(app)
+      .get('/admin-actions')
+      .query({ targetType: 'NewPlaceSubmission', targetId: created.body.id })
+      .set('x-admin-key', ADMIN_KEY);
+    expect(logs.body).toEqual([
+      expect.objectContaining({ action: 'new_place_request.rejected', targetId: created.body.id }),
+    ]);
   });
 
-  it('onaylama akışı: gerçek bir Place oluşturur', async () => {
+  it('onaylama akışı: gerçek bir Place oluşturur ve bir audit log kaydı bırakır', async () => {
     const created = await createSubmission({ name: 'Onaylanacak Yer', categoryId: 1 });
 
     const res = await request(app)
@@ -139,6 +150,18 @@ describe('PATCH /new-place-requests/:id', () => {
     // /places cache'i onay anında invalidate edilmeli — yeni yer hemen görünmeli.
     const placesRes = await request(app).get('/places');
     expect(placesRes.body.some((p) => p.id === res.body.place.id)).toBe(true);
+
+    const logs = await request(app)
+      .get('/admin-actions')
+      .query({ targetType: 'NewPlaceSubmission', targetId: created.body.id })
+      .set('x-admin-key', ADMIN_KEY);
+    expect(logs.body).toEqual([
+      expect.objectContaining({
+        action: 'new_place_request.approved',
+        targetId: created.body.id,
+        metadata: { placeId: res.body.place.id, districtId: 1, categoryId: 1 },
+      }),
+    ]);
   });
 
   it('districtId olmadan onay 400 döner', async () => {
@@ -200,5 +223,26 @@ describe('PATCH /new-place-requests/:id', () => {
 
     const places = await prisma.place.findMany({ where: { name: 'Yarış Testi' } });
     expect(places).toHaveLength(1);
+
+    // Yarış kaybeden istek 409 ile döndü ve hiç transaction'a girmedi — audit log da tek satır.
+    const logs = await prisma.adminActionLog.findMany({
+      where: { targetType: 'NewPlaceSubmission', targetId: created.body.id },
+    });
+    expect(logs).toHaveLength(1);
+  });
+});
+
+describe('GET /admin-actions', () => {
+  it('admin key olmadan 401 döner', async () => {
+    const res = await request(app).get('/admin-actions');
+    expect(res.status).toBe(401);
+  });
+
+  it('geçersiz targetId ile 400 döner', async () => {
+    const res = await request(app)
+      .get('/admin-actions')
+      .query({ targetId: 'abc' })
+      .set('x-admin-key', ADMIN_KEY);
+    expect(res.status).toBe(400);
   });
 });

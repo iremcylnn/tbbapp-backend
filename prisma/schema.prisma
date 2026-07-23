@@ -105,6 +105,24 @@ enum NewPlaceStatus {
   @@map("yeni_yer_talep_durumu")
 }
 
+// Gerçek admin hesapları/rolleri gelene kadar ara adım: paylaşılan x-admin-key tek başına
+// "kim onayladı, ne zaman" sorusuna cevap vermiyor. Bu, en azından eylemi + zamanı + IP'yi
+// (elimizdeki tek ayırt edici sinyal) kaydeder — ileride gerçek admin kimliğine geçilince
+// buraya bir adminId eklemek yeterli olur, tablo yapısı zaten buna hazır.
+model AdminActionLog {
+  id         Int      @id @default(autoincrement())
+  action     String   @map("eylem")
+  targetType String   @map("hedef_tip")
+  targetId   Int      @map("hedef_id")
+  ipAddress  String?  @map("ip_adresi")
+  metadata   Json?    @map("detay")
+  createdAt  DateTime @default(now()) @map("olusturulma_tarihi")
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("admin_islem_kayitlari")
+}
+
 model NewPlaceSubmission {
   id          Int            @id @default(autoincrement())
   userId      Int            @map("kullanici_id")
