@@ -1,0 +1,3 @@
+# Satır sonlarını repo genelinde LF'e sabitler; Windows/Mac/Linux katkıcıları arasında
+# tutarsızlığı (ve `git add` sırasındaki "LF will be replaced by CRLF" uyarılarını) önler.
+* text=auto eol=lf

@@ -8,49 +8,30 @@ if (!process.env.ADMIN_API_KEY) {
   console.error('HATA: ADMIN_API_KEY ortam değişkeni tanımlı değil. .env dosyasını kontrol edin (bkz. .env.example).');
   process.exit(1);
 }
-
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-
-const prisma = require('./lib/prisma');
-const districtsRouter = require('./routes/districts');
-const categoriesRouter = require('./routes/categories');
-const placesRouter = require('./routes/places');
-const feedbackRouter = require('./routes/feedback');
-const newPlaceRequestsRouter = require('./routes/newPlaceRequests');
-
-const isProduction = process.env.NODE_ENV === 'production';
-
-const app = express();
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
-if (!isProduction) {
-  app.use(morgan('dev'));
+if (!process.env.JWT_SECRET) {
+  console.error('HATA: JWT_SECRET ortam değişkeni tanımlı değil. .env dosyasını kontrol edin (bkz. .env.example).');
+  process.exit(1);
 }
 
-app.get('/', (req, res) => {
-  res.json({ status: 'ok' });
+const app = require('./app');
+const prisma = require('./lib/prisma');
+
+// Express 5, route handler'larındaki (sync/async) hataları zaten otomatik olarak
+// error middleware'e yönlendiriyor — oradaki hatalar process'i çökertmez. Bu iki
+// dinleyici, request-response döngüsünün DIŞINDA (ör. bir timer, bir kütüphane
+// callback'i) oluşan gerçekten beklenmedik hatalara karşı son güvenlik ağı: process'i
+// bozuk bir durumda sessizce çalışır bırakmak yerine loglayıp temiz şekilde kapatıyor.
+// Gerçek dayanıklılık, bunu bir restart policy'yle (docker/pm2) çalıştırmaktan gelir.
+process.on('unhandledRejection', (reason) => {
+  throw reason;
 });
-
-app.use('/districts', districtsRouter);
-app.use('/categories', categoriesRouter);
-app.use('/places', placesRouter);
-app.use('/feedback', feedbackRouter);
-app.use('/new-place-requests', newPlaceRequestsRouter);
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Bulunamadı' });
-});
-
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({
-    error: isProduction ? 'Sunucu hatası' : err.message,
-  });
+process.on('uncaughtException', async (err) => {
+  console.error('Beklenmedik hata, process kapatılıyor:', err);
+  try {
+    await prisma.$disconnect();
+  } finally {
+    process.exit(1);
+  }
 });
 
 const port = process.env.PORT || 3000;

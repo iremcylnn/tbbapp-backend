@@ -1,8 +1,9 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const requireAdmin = require('../lib/adminAuth');
+const { requireAuth } = require('../lib/auth');
 const { publicWriteLimiter } = require('../lib/rateLimit');
-const { parsePositiveInt, isFiniteNumber } = require('../lib/validate');
+const { parsePositiveInt, isFiniteNumber, isNonEmptyString } = require('../lib/validate');
 
 const router = express.Router();
 
@@ -24,19 +25,20 @@ router.get('/', requireAdmin, async (req, res) => {
   const feedback = await prisma.feedbackSubmission.findMany({
     where,
     orderBy: { createdAt: 'desc' },
+    include: { user: { select: { firstName: true, lastName: true, email: true } } },
   });
   res.json(feedback);
 });
 
-// POST /feedback - yeni şikayet/talep kaydet
-router.post('/', publicWriteLimiter, async (req, res) => {
+// POST /feedback - giriş yapmış kullanıcı adına yeni şikayet/talep kaydet
+router.post('/', requireAuth, publicWriteLimiter, async (req, res) => {
   const { kind, description, placeId, latitude, longitude } = req.body;
 
   if (!VALID_KINDS.includes(kind)) {
     return res.status(400).json({ error: `kind şunlardan biri olmalıdır: ${VALID_KINDS.join(', ')}` });
   }
-  if (typeof description !== 'string' || !description.trim()) {
-    return res.status(400).json({ error: 'description zorunludur' });
+  if (!isNonEmptyString(description)) {
+    return res.status(400).json({ error: 'description zorunludur ve 2000 karakteri geçemez' });
   }
 
   let resolvedPlaceId = null;
@@ -55,6 +57,7 @@ router.post('/', publicWriteLimiter, async (req, res) => {
 
   const feedback = await prisma.feedbackSubmission.create({
     data: {
+      userId: req.userId,
       kind,
       description: description.trim(),
       placeId: resolvedPlaceId,

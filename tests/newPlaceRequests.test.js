@@ -1,0 +1,204 @@
+const request = require('supertest');
+const app = require('../app');
+const prisma = require('../lib/prisma');
+
+const ADMIN_KEY = process.env.ADMIN_API_KEY;
+const createdSubmissionIds = [];
+const createdPlaceIds = [];
+const createdUserIds = [];
+let token;
+
+beforeAll(async () => {
+  const email = `newplace-test-${Date.now()}@example.com`;
+  const res = await request(app)
+    .post('/auth/register')
+    .send({ firstName: 'Test', lastName: 'Kullanıcı', email, password: 'sifre1234' });
+  token = res.body.token;
+  createdUserIds.push(res.body.user.id);
+});
+
+afterAll(async () => {
+  if (createdPlaceIds.length) {
+    await prisma.place.deleteMany({ where: { id: { in: createdPlaceIds } } });
+  }
+  if (createdSubmissionIds.length) {
+    await prisma.newPlaceSubmission.deleteMany({ where: { id: { in: createdSubmissionIds } } });
+  }
+  if (createdUserIds.length) {
+    await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
+  }
+  await prisma.$disconnect();
+});
+
+async function createSubmission(overrides = {}) {
+  const res = await request(app)
+    .post('/new-place-requests')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      name: 'Test Yeri',
+      description: 'test açıklaması',
+      latitude: 40.98,
+      longitude: 27.51,
+      ...overrides,
+    });
+  createdSubmissionIds.push(res.body.id);
+  return res;
+}
+
+describe('POST /new-place-requests', () => {
+  it('giriş yapmadan 401 döner', async () => {
+    const res = await request(app)
+      .post('/new-place-requests')
+      .send({ name: 'x', description: 'y', latitude: 40.9, longitude: 27.5 });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('geçerli veriyle 201 ve pending durumda kayıt oluşturur', async () => {
+    const res = await createSubmission();
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('pending');
+  });
+
+  it('name 200 karakteri geçerse 400 döner', async () => {
+    const res = await request(app)
+      .post('/new-place-requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'a'.repeat(201), description: 'y', latitude: 40.9, longitude: 27.5 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('latitude/longitude eksikse 400 döner', async () => {
+    const res = await request(app)
+      .post('/new-place-requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'x', description: 'y' });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /new-place-requests (admin)', () => {
+  it('admin key olmadan 401 döner', async () => {
+    const res = await request(app).get('/new-place-requests');
+    expect(res.status).toBe(401);
+  });
+
+  it('doğru admin key ile listeyi ve gönderen kullanıcı bilgisini döner', async () => {
+    const created = await createSubmission({ name: 'Admin Liste Testi' });
+
+    const res = await request(app).get('/new-place-requests').set('x-admin-key', ADMIN_KEY);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    const found = res.body.find((r) => r.id === created.body.id);
+    expect(found.user).toEqual(expect.objectContaining({ firstName: 'Test', lastName: 'Kullanıcı' }));
+  });
+});
+
+describe('PATCH /new-place-requests/:id', () => {
+  it('admin key olmadan 401 döner', async () => {
+    const created = await createSubmission();
+
+    const res = await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .send({ status: 'rejected' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('reddetme akışı: status rejected olur', async () => {
+    const created = await createSubmission({ name: 'Reddedilecek' });
+
+    const res = await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .set('x-admin-key', ADMIN_KEY)
+      .send({ status: 'rejected' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('rejected');
+  });
+
+  it('onaylama akışı: gerçek bir Place oluşturur', async () => {
+    const created = await createSubmission({ name: 'Onaylanacak Yer', categoryId: 1 });
+
+    const res = await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .set('x-admin-key', ADMIN_KEY)
+      .send({ status: 'approved', districtId: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.submission.status).toBe('approved');
+    expect(res.body.place).toEqual(
+      expect.objectContaining({ name: 'Onaylanacak Yer', districtId: 1, categoryId: 1 })
+    );
+    createdPlaceIds.push(res.body.place.id);
+
+    // /places cache'i onay anında invalidate edilmeli — yeni yer hemen görünmeli.
+    const placesRes = await request(app).get('/places');
+    expect(placesRes.body.some((p) => p.id === res.body.place.id)).toBe(true);
+  });
+
+  it('districtId olmadan onay 400 döner', async () => {
+    const created = await createSubmission();
+
+    const res = await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .set('x-admin-key', ADMIN_KEY)
+      .send({ status: 'approved' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('geçersiz districtId için 400 döner', async () => {
+    const created = await createSubmission({ categoryId: 1 });
+
+    const res = await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .set('x-admin-key', ADMIN_KEY)
+      .send({ status: 'approved', districtId: 999999 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('zaten karara bağlanmış öneriye tekrar dokununca 409 döner', async () => {
+    const created = await createSubmission();
+    await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .set('x-admin-key', ADMIN_KEY)
+      .send({ status: 'rejected' });
+
+    const res = await request(app)
+      .patch(`/new-place-requests/${created.body.id}`)
+      .set('x-admin-key', ADMIN_KEY)
+      .send({ status: 'approved', districtId: 1 });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('eşzamanlı iki onay isteğinde sadece biri başarılı olur, çift Place oluşmaz', async () => {
+    const created = await createSubmission({ name: 'Yarış Testi', categoryId: 1 });
+
+    const [res1, res2] = await Promise.all([
+      request(app)
+        .patch(`/new-place-requests/${created.body.id}`)
+        .set('x-admin-key', ADMIN_KEY)
+        .send({ status: 'approved', districtId: 1 }),
+      request(app)
+        .patch(`/new-place-requests/${created.body.id}`)
+        .set('x-admin-key', ADMIN_KEY)
+        .send({ status: 'approved', districtId: 1 }),
+    ]);
+
+    const statuses = [res1.status, res2.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const successRes = res1.status === 200 ? res1 : res2;
+    createdPlaceIds.push(successRes.body.place.id);
+
+    const places = await prisma.place.findMany({ where: { name: 'Yarış Testi' } });
+    expect(places).toHaveLength(1);
+  });
+});

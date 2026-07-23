@@ -12,6 +12,20 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  firstName String   @map("ad")
+  lastName  String   @map("soyad")
+  email     String   @unique
+  password  String   @map("sifre")
+  createdAt DateTime @default(now()) @map("olusturulma_tarihi")
+
+  feedbackSubmissions FeedbackSubmission[]
+  newPlaceSubmissions NewPlaceSubmission[]
+
+  @@map("kullanicilar")
+}
+
 model District {
   id     Int     @id @default(autoincrement())
   name   String  @map("ilce")
@@ -53,6 +67,7 @@ enum FeedbackKind {
 
 model FeedbackSubmission {
   id          Int          @id @default(autoincrement())
+  userId      Int          @map("kullanici_id")
   kind        FeedbackKind
   description String
   placeId     Int?         @map("koordinat_id")
@@ -60,6 +75,10 @@ model FeedbackSubmission {
   longitude   Float?       @map("boylam")
   createdAt   DateTime     @default(now()) @map("olusturulma_tarihi")
 
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([kind])
+  @@index([createdAt])
   @@map("sikayet_talepler")
 }
 
@@ -73,6 +92,7 @@ enum NewPlaceStatus {
 
 model NewPlaceSubmission {
   id          Int            @id @default(autoincrement())
+  userId      Int            @map("kullanici_id")
   name        String         @map("konum_adi")
   categoryId  Int?           @map("harita_filtre_id")
   description String
@@ -81,5 +101,9 @@ model NewPlaceSubmission {
   status      NewPlaceStatus @default(pending)
   createdAt   DateTime       @default(now()) @map("olusturulma_tarihi")
 
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
   @@map("yeni_yer_talepleri")
 }
