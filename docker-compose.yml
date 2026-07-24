@@ -16,6 +16,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # PostgreSQL 17 for the Laravel app (laravel/). Separate service + volume so the
+  # Node app's postgres:16 data above stays untouched.
+  db17:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tbbapp
+      POSTGRES_PASSWORD: tbbapp_dev_password
+      POSTGRES_DB: tbbapp_laravel
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata17:/var/lib/postgresql/data
+      - ./docker/postgres17-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tbbapp -d tbbapp_laravel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   pgadmin:
     image: dpage/pgadmin4
     restart: unless-stopped
