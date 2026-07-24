@@ -13,7 +13,7 @@ architecture and ratified decisions.
 ## Running
 
 `.env` points at native PostgreSQL on port 5432 (role `tbbapp`, databases
-`tbbapp_laravel` + `tbbapp_laravel_test`):
+`tbbapp` + `tbbapp_test`):
 
 ```bash
 php artisan migrate --seed
@@ -29,8 +29,8 @@ Fresh database setup (as superuser):
 
 ```sql
 CREATE ROLE tbbapp LOGIN PASSWORD 'tbbapp_dev_password';
-CREATE DATABASE tbbapp_laravel OWNER tbbapp;
-CREATE DATABASE tbbapp_laravel_test OWNER tbbapp;
+CREATE DATABASE tbbapp OWNER tbbapp;
+CREATE DATABASE tbbapp_test OWNER tbbapp;
 ```
 
 ## Serving to a phone (Expo dev)
@@ -51,6 +51,6 @@ allow for private networks).
 php artisan test
 ```
 
-Runs against real PostgreSQL (`tbbapp_laravel_test`) — the
+Runs against real PostgreSQL (`tbbapp_test`) — the
 decimal-serialization and trigger behaviors don't exist on sqlite. Tests
 that need the database skip themselves cleanly while it's unreachable.

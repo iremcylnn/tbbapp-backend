@@ -32,8 +32,11 @@ return new class extends Migration
         });
         DB::table('map_version')->insert(['id' => 1, 'version' => 1]);
 
+        // OR REPLACE: functions aren't tables, so migrate:fresh (drop all
+        // tables + re-migrate) leaves the function behind — recreating must
+        // not collide. Triggers need no such guard; they die with their table.
         DB::unprepared(<<<'SQL'
-            CREATE FUNCTION bump_map_version() RETURNS trigger LANGUAGE plpgsql AS $$
+            CREATE OR REPLACE FUNCTION bump_map_version() RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
                 UPDATE map_version SET version = version + 1 WHERE id = 1;
                 RETURN NULL;  -- ignored for AFTER ... FOR EACH STATEMENT triggers

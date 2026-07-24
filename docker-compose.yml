@@ -24,14 +24,14 @@ services:
     environment:
       POSTGRES_USER: tbbapp
       POSTGRES_PASSWORD: tbbapp_dev_password
-      POSTGRES_DB: tbbapp_laravel
+      POSTGRES_DB: tbbapp
     ports:
       - "5434:5432"
     volumes:
       - pgdata17:/var/lib/postgresql/data
       - ./docker/postgres17-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tbbapp -d tbbapp_laravel"]
+      test: ["CMD-SHELL", "pg_isready -U tbbapp -d tbbapp"]
       interval: 5s
       timeout: 5s
       retries: 5

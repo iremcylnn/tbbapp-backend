@@ -8,7 +8,7 @@ use PDOException;
 
 /**
  * Base class for tests that need the real PostgreSQL test database
- * (tbbapp_laravel_test — connection details in phpunit.xml).
+ * (tbbapp_test — connection details in phpunit.xml).
  *
  * While PostgreSQL isn't installed yet, these tests SKIP instead of erroring,
  * so the rest of the suite stays green. The moment the database exists they
@@ -43,7 +43,7 @@ abstract class PostgresTestCase extends TestCase
                     'pgsql:host=%s;port=%s;dbname=%s;connect_timeout=2',
                     getenv('DB_HOST') ?: '127.0.0.1',
                     getenv('DB_PORT') ?: '5432',
-                    getenv('DB_DATABASE') ?: 'tbbapp_laravel_test',
+                    getenv('DB_DATABASE') ?: 'tbbapp_test',
                 ),
                 getenv('DB_USERNAME') ?: 'tbbapp',
                 getenv('DB_PASSWORD') ?: 'tbbapp_dev_password',
