@@ -52,4 +52,5 @@ services:
 
 volumes:
   pgdata:
+  pgdata17:
   pgadmin_data:
