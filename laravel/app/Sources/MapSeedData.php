@@ -19,9 +19,9 @@ class MapSeedData
     /**
      * Freshness marker for the mock source. Static data → a constant → the
      * mock ETag never rotates. Bump by one whenever this dataset is edited.
-     * (v2: districts + descriptions added, 2026-07-24.)
+     * (v3: Eczane category added for the OSM import, 2026-07-24.)
      */
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     /**
      * @return list<array{id: int, title: string, status: string}>
@@ -59,6 +59,7 @@ class MapSeedData
             ['id' => 8, 'title' => 'Otopark', 'status' => 'active'],
             ['id' => 9, 'title' => 'Park', 'status' => 'active'],
             ['id' => 10, 'title' => 'Ulaşım', 'status' => 'active'],
+            ['id' => 11, 'title' => 'Eczane', 'status' => 'active'],
         ];
     }
 

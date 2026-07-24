@@ -28,8 +28,8 @@ class MapBootstrapMockTest extends TestCase
         $response = $this->getJson('/api/map/bootstrap');
 
         $response->assertOk()
-            ->assertHeader('ETag', '"map-v2"')
-            ->assertJsonCount(10, 'categories')
+            ->assertHeader('ETag', '"map-v3"')
+            ->assertJsonCount(11, 'categories')
             ->assertJsonCount(11, 'districts')
             ->assertJsonCount(23, 'places');
 
@@ -71,7 +71,7 @@ class MapBootstrapMockTest extends TestCase
     {
         $this->getJson('/api/map/bootstrap', ['If-None-Match' => '"map-v0"'])
             ->assertOk()
-            ->assertHeader('ETag', '"map-v2"');
+            ->assertHeader('ETag', '"map-v3"');
     }
 
     public function test_unknown_api_route_is_json_404(): void

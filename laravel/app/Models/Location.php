@@ -20,6 +20,7 @@ class Location extends Model
         'status',
         'category_id',
         'description',
+        'osm_id',
     ];
 
     /**

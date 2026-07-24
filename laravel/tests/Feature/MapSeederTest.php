@@ -15,7 +15,7 @@ class MapSeederTest extends PostgresTestCase
         $this->seed(MapSeeder::class);
 
         $this->assertSame(11, District::count());
-        $this->assertSame(10, LocationCategory::count());
+        $this->assertSame(11, LocationCategory::count());
         $this->assertSame(23, Location::count());
         $this->assertSame('Tekirdağ Büyükşehir Belediyesi', Location::find(1)->title);
         $this->assertSame('Belediye', LocationCategory::find(1)->title);
@@ -29,7 +29,7 @@ class MapSeederTest extends PostgresTestCase
         $this->seed(MapSeeder::class);
 
         $this->assertSame(11, District::count());
-        $this->assertSame(10, LocationCategory::count());
+        $this->assertSame(11, LocationCategory::count());
         $this->assertSame(23, Location::count());
     }
 
@@ -41,7 +41,7 @@ class MapSeederTest extends PostgresTestCase
         // without the setval calls Postgres would try to hand out id 1 here
         // and collide.
         $category = LocationCategory::create(['title' => 'Yeni Kategori']);
-        $this->assertSame(11, $category->id);
+        $this->assertSame(12, $category->id);
 
         $place = Location::create([
             'title' => 'Yeni Yer',
