@@ -75,8 +75,19 @@ class MapVersionTest extends PostgresTestCase
         $before = MapVersion::current();
 
         // TRUNCATE fires no row-level triggers at all; only a statement-level
-        // TRUNCATE trigger catches it.
-        DB::statement('TRUNCATE locations');
+        // TRUNCATE trigger catches it. CASCADE because feedback_submissions
+        // references locations — Postgres refuses a plain TRUNCATE on a
+        // referenced table.
+        DB::statement('TRUNCATE locations CASCADE');
+
+        $this->assertSame($before + 1, MapVersion::current());
+    }
+
+    public function test_district_writes_bump(): void
+    {
+        $before = MapVersion::current();
+
+        \App\Models\District::query()->whereKey(1)->update(['title' => 'Yeni Ad']);
 
         $this->assertSame($before + 1, MapVersion::current());
     }

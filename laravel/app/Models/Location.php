@@ -19,6 +19,7 @@ class Location extends Model
         'long',
         'status',
         'category_id',
+        'description',
     ];
 
     /**
@@ -43,5 +44,10 @@ class Location extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(LocationCategory::class, 'category_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'district_id');
     }
 }

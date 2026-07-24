@@ -5,6 +5,9 @@ namespace App\Providers;
 use App\Sources\DatabaseLocationSource;
 use App\Sources\LocationSource;
 use App\Sources\MockLocationSource;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 
@@ -41,6 +44,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Mirrors the old server: 20 requests / 15 minutes, and DELIBERATELY
+        // two separate counters — failed logins must not eat the feedback
+        // quota (and vice versa); they're unrelated threat models.
+        $tooMany = fn () => response()->json(
+            ['message' => 'Çok fazla deneme yapıldı, lütfen daha sonra tekrar deneyin.'],
+            429
+        );
+
+        RateLimiter::for('auth', fn (Request $request) => Limit::perMinutes(15, 20)
+            ->by($request->ip())
+            ->response($tooMany));
+
+        RateLimiter::for('public-write', fn (Request $request) => Limit::perMinutes(15, 20)
+            ->by($request->user()?->id ?? $request->ip())
+            ->response($tooMany));
     }
 }

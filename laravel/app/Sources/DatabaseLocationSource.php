@@ -2,6 +2,7 @@
 
 namespace App\Sources;
 
+use App\Models\District;
 use App\Models\Location;
 use App\Models\LocationCategory;
 use App\Models\MapVersion;
@@ -22,10 +23,18 @@ class DatabaseLocationSource implements LocationSource
             ->all();
     }
 
+    public function districts(): array
+    {
+        return District::query()
+            ->get(['id', 'title', 'status'])
+            ->map(fn (District $d) => $d->toArray())
+            ->all();
+    }
+
     public function places(): array
     {
         return Location::query()
-            ->get(['id', 'title', 'province_id', 'district_id', 'lat', 'long', 'status', 'category_id'])
+            ->get(['id', 'title', 'province_id', 'district_id', 'lat', 'long', 'status', 'category_id', 'description'])
             ->map(fn (Location $l) => $l->toArray())
             ->all();
     }

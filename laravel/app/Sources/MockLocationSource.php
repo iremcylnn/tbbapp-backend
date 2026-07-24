@@ -15,6 +15,11 @@ class MockLocationSource implements LocationSource
         return MapSeedData::categories();
     }
 
+    public function districts(): array
+    {
+        return MapSeedData::districts();
+    }
+
     public function places(): array
     {
         return MapSeedData::places();

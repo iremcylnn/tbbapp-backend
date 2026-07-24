@@ -1,14 +1,51 @@
 # TbbApp backend (map API)
 
-Laravel 12 backend for the TbbApp mobile app's map module. One endpoint:
+Laravel 12 backend for the TbbApp mobile app. See `CLAUDE.md` for the full
+architecture and ratified decisions.
+
+## API surface
+
+Public read:
 
 ```
-GET /api/map/bootstrap        → {categories: [...], places: [...]} + ETag
+GET /api/map/bootstrap   → {categories, districts, places} + ETag
 ```
 
 Send the previous response's `ETag` back as `If-None-Match` to get a free
-`304 Not Modified` when nothing changed. See `CLAUDE.md` for the full
-architecture and ratified decisions.
+`304 Not Modified` when nothing changed.
+
+Citizen auth (Sanctum bearer tokens; rate-limited 20 req / 15 min per IP):
+
+```
+POST /api/auth/register          {firstName, lastName, email, password}
+POST /api/auth/login             {email, password}          → {token, user}
+POST /api/auth/forgot-password   {email}                    → mails a 6-digit code
+POST /api/auth/reset-password    {email, code, newPassword}
+GET  /api/auth/me                (Bearer token)
+POST /api/auth/logout            (Bearer token)
+```
+
+Citizen submissions (Bearer token; writes rate-limited 20 / 15 min per user):
+
+```
+POST /api/feedback               {kind: complaint|request, description, location_id?, lat?, long?}
+GET  /api/feedback/mine
+POST /api/new-place-requests     {title, category_id?, description, lat, long}   → starts "pending"
+GET  /api/new-place-requests/mine
+```
+
+Admin (shared `x-admin-key` header — `ADMIN_API_KEY` in `.env`):
+
+```
+GET   /api/feedback?kind=
+GET   /api/new-place-requests?status=pending|approved|rejected
+PATCH /api/new-place-requests/{id}   {status: approved|rejected, district_id (on approve), category_id?}
+GET   /api/admin/action-logs
+```
+
+Approving a request creates a real `locations` row in the same transaction as
+the audit-log entry; the Postgres trigger bumps `map_version`, so the
+bootstrap ETag rotates automatically.
 
 ## Running
 

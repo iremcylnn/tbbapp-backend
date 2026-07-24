@@ -25,8 +25,15 @@ interface LocationSource
     public function categories(): array;
 
     /**
+     * All district rows, raw: {id, title, status}.
+     *
+     * @return list<array{id: int, title: string, status: string}>
+     */
+    public function districts(): array;
+
+    /**
      * All place rows, raw:
-     * {id, title, province_id, district_id, lat, long, status, category_id}.
+     * {id, title, province_id, district_id, lat, long, status, category_id, description}.
      *
      * @return list<array<string, mixed>>
      */

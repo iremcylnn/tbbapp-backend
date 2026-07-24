@@ -26,6 +26,7 @@ class LocationFactory extends Factory
             'long' => fake()->randomFloat(7, 27.0, 28.1),
             'status' => 'active',
             'category_id' => LocationCategory::factory(),
+            'description' => fake()->optional()->sentence(),
         ];
     }
 

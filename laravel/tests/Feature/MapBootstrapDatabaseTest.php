@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\District;
 use App\Models\Location;
 use App\Models\LocationCategory;
 use Illuminate\Support\Facades\DB;
@@ -23,12 +24,46 @@ class MapBootstrapDatabaseTest extends PostgresTestCase
         Location::factory()->for($category, 'category')->disabled()->create();
         Location::factory()->for($category, 'category')->create(['province_id' => 34]);
 
+        // The 11 real districts ship in the migration; a disabled extra one
+        // must not appear alongside them.
+        District::factory()->disabled()->create();
+
         $response = $this->getJson('/api/map/bootstrap');
 
         $response->assertOk()
             ->assertJsonCount(1, 'categories')
+            ->assertJsonCount(11, 'districts')
             ->assertJsonCount(1, 'places')
             ->assertJsonPath('places.0.id', $visible->id);
+    }
+
+    public function test_description_serializes_and_nulls_are_allowed(): void
+    {
+        $category = LocationCategory::factory()->create();
+        Location::factory()->for($category, 'category')->create([
+            'description' => 'Ana hizmet binası',
+        ]);
+        Location::factory()->for($category, 'category')->create([
+            'description' => null,
+        ]);
+
+        $response = $this->getJson('/api/map/bootstrap');
+
+        $response->assertJsonPath('places.0.description', 'Ana hizmet binası')
+            ->assertJsonPath('places.1.description', null);
+    }
+
+    public function test_etag_rotates_when_a_district_title_changes(): void
+    {
+        // districts has NO timestamps — only its Postgres trigger makes this
+        // edit visible to freshness tracking (same design as categories).
+        $etag = $this->getJson('/api/map/bootstrap')->headers->get('ETag');
+
+        District::query()->whereKey(1)->update(['title' => 'Yeni İlçe Adı']);
+
+        $this->getJson('/api/map/bootstrap', ['If-None-Match' => $etag])
+            ->assertOk()
+            ->assertJsonPath('districts.0.title', 'Yeni İlçe Adı');
     }
 
     public function test_postgres_decimals_serialize_as_json_numbers(): void

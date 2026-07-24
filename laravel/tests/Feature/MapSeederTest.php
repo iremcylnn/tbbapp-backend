@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\District;
 use App\Models\Location;
 use App\Models\LocationCategory;
 use Database\Seeders\MapSeeder;
@@ -13,10 +14,13 @@ class MapSeederTest extends PostgresTestCase
     {
         $this->seed(MapSeeder::class);
 
+        $this->assertSame(11, District::count());
         $this->assertSame(10, LocationCategory::count());
         $this->assertSame(23, Location::count());
         $this->assertSame('Tekirdağ Büyükşehir Belediyesi', Location::find(1)->title);
         $this->assertSame('Belediye', LocationCategory::find(1)->title);
+        $this->assertSame('Süleymanpaşa', District::find(1)->title);
+        $this->assertNotNull(Location::find(1)->description);
     }
 
     public function test_seeding_twice_is_idempotent(): void
@@ -24,6 +28,7 @@ class MapSeederTest extends PostgresTestCase
         $this->seed(MapSeeder::class);
         $this->seed(MapSeeder::class);
 
+        $this->assertSame(11, District::count());
         $this->assertSame(10, LocationCategory::count());
         $this->assertSame(23, Location::count());
     }
