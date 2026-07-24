@@ -10,6 +10,15 @@ const router = express.Router();
 // map.md: MapFeedbackSubmission.kind sadece 'complaint' | 'request' olabilir (Şikayet/Talep)
 const VALID_KINDS = ['complaint', 'request'];
 
+// GET /feedback/mine - giriş yapmış kullanıcının kendi şikayet/talep geçmişi
+router.get('/mine', requireAuth, async (req, res) => {
+  const feedback = await prisma.feedbackSubmission.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(feedback);
+});
+
 // GET /feedback?kind=complaint - şikayet/talepleri listele (admin)
 router.get('/', requireAdmin, async (req, res) => {
   const { kind } = req.query;

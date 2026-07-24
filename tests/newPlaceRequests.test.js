@@ -83,6 +83,36 @@ describe('POST /new-place-requests', () => {
   });
 });
 
+describe('GET /new-place-requests/mine', () => {
+  it('giriş yapmadan 401 döner', async () => {
+    const res = await request(app).get('/new-place-requests/mine');
+    expect(res.status).toBe(401);
+  });
+
+  it('sadece giriş yapan kullanıcının kendi önerilerini döner', async () => {
+    const own = await createSubmission({ name: 'Benim Önerim' });
+
+    const otherEmail = `newplace-other-${Date.now()}@example.com`;
+    const otherRes = await request(app)
+      .post('/auth/register')
+      .send({ firstName: 'Diğer', lastName: 'Kullanıcı', email: otherEmail, password: 'sifre1234' });
+    createdUserIds.push(otherRes.body.user.id);
+
+    const otherSubmission = await request(app)
+      .post('/new-place-requests')
+      .set('Authorization', `Bearer ${otherRes.body.token}`)
+      .send({ name: 'Başkasının Önerisi', description: 'test açıklaması', latitude: 40.98, longitude: 27.51 });
+    createdSubmissionIds.push(otherSubmission.body.id);
+
+    const res = await request(app).get('/new-place-requests/mine').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.some((r) => r.id === own.body.id)).toBe(true);
+    expect(res.body.every((r) => r.id !== otherSubmission.body.id)).toBe(true);
+  });
+});
+
 describe('GET /new-place-requests (admin)', () => {
   it('admin key olmadan 401 döner', async () => {
     const res = await request(app).get('/new-place-requests');

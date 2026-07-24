@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 const createdIds = [];
+const otherCreatedIds = [];
 const createdUserIds = [];
 let token;
 
@@ -19,6 +20,9 @@ beforeAll(async () => {
 afterAll(async () => {
   if (createdIds.length) {
     await prisma.feedbackSubmission.deleteMany({ where: { id: { in: createdIds } } });
+  }
+  if (otherCreatedIds.length) {
+    await prisma.feedbackSubmission.deleteMany({ where: { id: { in: otherCreatedIds } } });
   }
   if (createdUserIds.length) {
     await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -71,6 +75,35 @@ describe('POST /feedback', () => {
       .send({ kind: 'request', description: 'a'.repeat(2001) });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /feedback/mine', () => {
+  it('giriş yapmadan 401 döner', async () => {
+    const res = await request(app).get('/feedback/mine');
+    expect(res.status).toBe(401);
+  });
+
+  it('sadece giriş yapan kullanıcının kendi kayıtlarını döner', async () => {
+    const otherEmail = `feedback-other-${Date.now()}@example.com`;
+    const otherRes = await request(app)
+      .post('/auth/register')
+      .send({ firstName: 'Diğer', lastName: 'Kullanıcı', email: otherEmail, password: 'sifre1234' });
+    createdUserIds.push(otherRes.body.user.id);
+    const otherToken = otherRes.body.token;
+
+    const otherFeedback = await request(app)
+      .post('/feedback')
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ kind: 'request', description: 'başkasının talebi' });
+    otherCreatedIds.push(otherFeedback.body.id);
+
+    const res = await request(app).get('/feedback/mine').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.every((f) => f.id !== otherFeedback.body.id)).toBe(true);
+    expect(res.body.some((f) => f.id === createdIds[0])).toBe(true);
   });
 });
 

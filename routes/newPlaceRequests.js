@@ -10,6 +10,15 @@ const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
+// GET /new-place-requests/mine - giriş yapmış kullanıcının kendi yeni yer önerileri
+router.get('/mine', requireAuth, async (req, res) => {
+  const requests = await prisma.newPlaceSubmission.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(requests);
+});
+
 // GET /new-place-requests?status=pending - yeni yer önerilerini listele (admin)
 router.get('/', requireAdmin, async (req, res) => {
   const { status } = req.query;
