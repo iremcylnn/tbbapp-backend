@@ -18,8 +18,12 @@ preferences here.
 
 - Laravel 12, PostgreSQL 17 (pgAdmin as inspection client only — ALL schema changes go
   through migrations, never pgAdmin clicks).
-- API-only: JSON routes in `routes/api.php`. No server-rendered views, no `routes/web.php`
-  work.
+- API-only for the mobile contract: JSON routes in `routes/api.php`. The one exception is
+  an internal admin panel under `/admin/*` (`routes/web.php`) — session-authenticated
+  server-rendered Blade pages for moderating new-place requests, feedback, and action logs.
+  It reuses the same `config('admin.api_key')` shared secret as `RequireAdminKey` (wrapped
+  in a login form, no real admin accounts yet — see `RequireAdminSession`), and calls the
+  same services/models the JSON API uses. It never changes the mobile app's JSON contract.
 - Dev serving: `php artisan serve`. The Expo app on a physical phone reaches this via the
   machine's LAN IP (`http://192.168.x.x:8000`), NOT localhost — same Wi-Fi, firewall open.
 
