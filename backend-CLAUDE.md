@@ -18,8 +18,12 @@ preferences here.
 
 - Laravel 12, PostgreSQL 17 (pgAdmin as inspection client only — ALL schema changes go
   through migrations, never pgAdmin clicks).
-- API-only: JSON routes in `routes/api.php`. No server-rendered views, no `routes/web.php`
-  work.
+- API-only for the mobile contract: JSON routes in `routes/api.php`. The one exception is
+  an internal admin panel under `/admin/*` (`routes/web.php`) — session-authenticated
+  server-rendered Blade pages for moderating new-place requests, feedback, and action logs.
+  It reuses the same `config('admin.api_key')` shared secret as `RequireAdminKey` (wrapped
+  in a login form, no real admin accounts yet — see `RequireAdminSession`), and calls the
+  same services/models the JSON API uses. It never changes the mobile app's JSON contract.
 - Dev serving: `php artisan serve`. The Expo app on a physical phone reaches this via the
   machine's LAN IP (`http://192.168.x.x:8000`), NOT localhost — same Wi-Fi, firewall open.
 
@@ -28,11 +32,15 @@ preferences here.
 - `locations`: `id`, `title`, `province_id` (always 59 = Tekirdağ), `district_id`, `lat`,
   `long`, `status`, `category_id` (FK → `locations_category`), `created_at`, `updated_at`.
 - `locations_category`: `id`, `title`, `status`.
-- Open items awaiting the guide's answer (don't build unilaterally): a `districts` table
-  (`district_id` currently references nothing), a nullable `description` text column on
-  `locations` (the app's details sheet displays one), and the feedback/new-place POST
-  endpoints + their table (not yet assigned), and a priority/tier column (or tier-per-category)
-  for the app's planned zoom-tier marker hierarchy (see the app repo's BACKEND.md).
+- Approved and built (2026-07-24): a `districts` table (id/title/status — the FK target for
+  `locations.district_id`, and part of the bootstrap payload); a nullable `description` text
+  column on `locations`; the feedback and new-place POST endpoints and their tables, plus the
+  citizen auth, password reset, and admin audit log those needed. `locations` also carries a
+  nullable unique `osm_id`, the upsert key for imported OpenStreetMap rows (NULL for
+  hand-entered ones).
+- Still open, awaiting the guide (don't build unilaterally): a priority/tier column (or
+  tier-per-category) for the app's planned zoom-tier marker hierarchy (see the app repo's
+  BACKEND.md), and per-category filtering (`?category_id=`).
 
 ## Ratified decisions (reasoning lives in the app repo's BACKEND.md)
 
@@ -54,6 +62,21 @@ preferences here.
   scraped page / credentialed feed) selected by config, never hardcoded in the route.
   Seeders are the mock system. A route must never call an external origin directly — source
   classes own origins.
+  - Scope of "each route": every read that SERVES map data goes through `LocationSource` —
+    the bootstrap endpoint, the admin panel's district/category dropdowns, and the validation
+    rules policing those dropdowns (a form must not offer an option its own validator would
+    reject, so options and rules read one source). Deliberate exception: validating a
+    submitted `location_id` uses `exists:locations,id`, because `places` is unbounded
+    (thousands of rows, and growing with every import) and materialising it into an
+    `in:` list on every write would be exactly the query-everything cost the ETag design
+    exists to avoid. Lookup tables are ~11 rows; the places table is not a lookup table.
+  - Submission tables (feedback, new-place requests, users, audit log) are write-side domain
+    data with no mock variant; those read Eloquent directly and that is correct.
+  - **Read** paths live in `App\Sources`. A write-side importer that pulls from an external
+    origin — the OSM/Overpass pharmacy import — lives in its own namespace (`App\Osm`)
+    because it feeds the database rather than serving a request, so it has no `LocationSource`
+    to implement. The rule it still obeys: the origin lives in exactly one class
+    (`OverpassClient`) and nothing else speaks HTTP to it.
 
 ## The contract (what the app consumes — changing shapes breaks the app)
 

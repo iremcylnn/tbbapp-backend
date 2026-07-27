@@ -1,9 +1,5 @@
 # CLAUDE.md — TbbApp backend (map API)
 
-<!-- Copy this file to the Laravel project's root as CLAUDE.md. It carries the context
-     ratified in the TbbApp (mobile) repo; the source-of-truth planning notes live there
-     in BACKEND.md. Keep the two in sync when decisions change. -->
-
 This is the backend for **TbbApp**, the Tekirdağ Büyükşehir Belediyesi mobile app — an intern
 project. The mobile app (Expo/React Native, separate repo) is finished and mock-driven; this
 project is the real data source that replaces its mocks. The two applications share NOTHING but
@@ -32,11 +28,15 @@ preferences here.
 - `locations`: `id`, `title`, `province_id` (always 59 = Tekirdağ), `district_id`, `lat`,
   `long`, `status`, `category_id` (FK → `locations_category`), `created_at`, `updated_at`.
 - `locations_category`: `id`, `title`, `status`.
-- Open items awaiting the guide's answer (don't build unilaterally): a `districts` table
-  (`district_id` currently references nothing), a nullable `description` text column on
-  `locations` (the app's details sheet displays one), and the feedback/new-place POST
-  endpoints + their table (not yet assigned), and a priority/tier column (or tier-per-category)
-  for the app's planned zoom-tier marker hierarchy (see the app repo's BACKEND.md).
+- Approved and built (2026-07-24): a `districts` table (id/title/status — the FK target for
+  `locations.district_id`, and part of the bootstrap payload); a nullable `description` text
+  column on `locations`; the feedback and new-place POST endpoints and their tables, plus the
+  citizen auth, password reset, and admin audit log those needed. `locations` also carries a
+  nullable unique `osm_id`, the upsert key for imported OpenStreetMap rows (NULL for
+  hand-entered ones).
+- Still open, awaiting the guide (don't build unilaterally): a priority/tier column (or
+  tier-per-category) for the app's planned zoom-tier marker hierarchy (see the app repo's
+  BACKEND.md), and per-category filtering (`?category_id=`).
 
 ## Ratified decisions (reasoning lives in the app repo's BACKEND.md)
 
@@ -58,6 +58,17 @@ preferences here.
   scraped page / credentialed feed) selected by config, never hardcoded in the route.
   Seeders are the mock system. A route must never call an external origin directly — source
   classes own origins.
+  - Scope of "each route": **every** read of map data (locations, categories, districts)
+    goes through `LocationSource` — including the admin panel's dropdowns and the validation
+    rules that police them. A form must not offer an option its own validator would reject,
+    so options and rules read the same source. Submission tables (feedback, new-place
+    requests, users, audit log) are write-side domain data with no mock variant; those read
+    Eloquent directly and that is correct.
+  - **Read** paths live in `App\Sources`. A write-side importer that pulls from an external
+    origin — the OSM/Overpass pharmacy import — lives in its own namespace (`App\Osm`)
+    because it feeds the database rather than serving a request, so it has no `LocationSource`
+    to implement. The rule it still obeys: the origin lives in exactly one class
+    (`OverpassClient`) and nothing else speaks HTTP to it.
 
 ## The contract (what the app consumes — changing shapes breaks the app)
 
