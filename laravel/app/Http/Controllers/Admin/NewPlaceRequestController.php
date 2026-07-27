@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DecideNewPlaceRequestRequest;
-use App\Models\District;
-use App\Models\LocationCategory;
+use App\Map\MapBootstrapService;
 use App\Models\NewPlaceRequest;
 use App\NewPlaces\NewPlaceApprovalService;
 use Illuminate\Http\RedirectResponse;
@@ -16,22 +15,27 @@ use Illuminate\View\View;
 /** Blade counterpart to the JSON API's NewPlaceRequestController — same service, same rules. */
 class NewPlaceRequestController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, MapBootstrapService $map): View
     {
         $filters = $request->validate(
             ['status' => ['sometimes', Rule::in(NewPlaceRequest::STATUSES)]],
         );
 
+        // The submissions are write-side domain data — read straight from
+        // Eloquent, there is no mock variant of them.
         $requests = NewPlaceRequest::query()
             ->when(isset($filters['status']), fn ($q) => $q->where('status', $filters['status']))
             ->latest()
             ->with('user')
             ->get();
 
+        // The dropdowns are MAP data, so they go through the configured
+        // source like every other map read — same rows the mobile app sees,
+        // and the same rows DecideNewPlaceRequestRequest will accept back.
         return view('admin.new-place-requests.index', [
             'requests' => $requests,
-            'districts' => District::active()->get(),
-            'categories' => LocationCategory::active()->get(),
+            'districts' => $map->districts(),
+            'categories' => $map->categories(),
             'currentStatus' => $filters['status'] ?? null,
         ]);
     }

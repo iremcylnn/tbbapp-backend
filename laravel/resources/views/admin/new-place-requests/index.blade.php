@@ -41,13 +41,13 @@
                                 <select name="district_id" required>
                                     <option value="">İlçe seç</option>
                                     @foreach ($districts as $district)
-                                        <option value="{{ $district->id }}">{{ $district->title }}</option>
+                                        <option value="{{ $district['id'] }}">{{ $district['title'] }}</option>
                                     @endforeach
                                 </select>
                                 <select name="category_id">
                                     <option value="">Kategori (öneriden al)</option>
                                     @foreach ($categories as $category)
-                                        <option value="{{ $category->id }}" @selected($r->category_id === $category->id)>{{ $category->title }}</option>
+                                        <option value="{{ $category['id'] }}" @selected($r->category_id === $category['id'])>{{ $category['title'] }}</option>
                                     @endforeach
                                 </select>
                                 <button type="submit" name="status" value="approved" class="approve">Onayla</button>

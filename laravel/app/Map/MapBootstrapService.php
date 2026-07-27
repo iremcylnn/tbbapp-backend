@@ -34,6 +34,31 @@ class MapBootstrapService
     }
 
     /**
+     * The active categories, {id, title}, sorted by id.
+     *
+     * Public because the admin panel needs the same list for its dropdowns:
+     * every read of map data goes through the configured source, so the panel
+     * can't drift from what the API serves (nor break under MAP_SOURCE=mock).
+     *
+     * @return list<array{id: int, title: string}>
+     */
+    public function categories(): array
+    {
+        return $this->idTitleRows($this->source->categories());
+    }
+
+    /**
+     * The active districts, {id, title}, sorted by id. Same reasoning as
+     * categories().
+     *
+     * @return list<array{id: int, title: string}>
+     */
+    public function districts(): array
+    {
+        return $this->idTitleRows($this->source->districts());
+    }
+
+    /**
      * The bootstrap payload, contract-shaped:
      * {
      *   categories: [{id, title}],
@@ -43,6 +68,10 @@ class MapBootstrapService
      */
     public function payload(): array
     {
+        // status/province_id are read WITHOUT a ?? fallback on purpose, unlike
+        // the optional description below: they are the filter keys the whole
+        // soft-delete contract rests on. A source that omits one must blow up
+        // loudly here, not silently publish rows nobody vetted.
         $places = array_values(array_filter(
             $this->source->places(),
             fn (array $p) => $p['status'] === 'active' && (int) $p['province_id'] === 59,
@@ -50,8 +79,8 @@ class MapBootstrapService
         usort($places, fn (array $a, array $b) => $a['id'] <=> $b['id']);
 
         return [
-            'categories' => $this->idTitleRows($this->source->categories()),
-            'districts' => $this->idTitleRows($this->source->districts()),
+            'categories' => $this->categories(),
+            'districts' => $this->districts(),
             'places' => array_map(fn (array $p) => [
                 'id' => $p['id'],
                 'title' => $p['title'],

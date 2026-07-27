@@ -45,17 +45,33 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Mirrors the old server: 20 requests / 15 minutes, and DELIBERATELY
-        // two separate counters — failed logins must not eat the feedback
-        // quota (and vice versa); they're unrelated threat models.
-        $tooMany = fn () => response()->json(
-            ['message' => 'Çok fazla deneme yapıldı, lütfen daha sonra tekrar deneyin.'],
-            429
-        );
+        // separate counters — one threat model must not eat another's quota.
+        // Laravel keys a named limiter as md5($limiterName.$limit->key) with
+        // NO route component, so every route sharing a name shares one bucket:
+        // the names below are the actual isolation boundary.
+        $message = 'Çok fazla deneme yapıldı, lütfen daha sonra tekrar deneyin.';
 
+        // The Blade admin panel posts a form and expects a form response; the
+        // mobile app and curl expect JSON. Same limit, right medium for each.
+        $tooMany = fn (Request $request) => $request->expectsJson() || $request->is('api/*')
+            ? response()->json(['message' => $message], 429)
+            : back()->withErrors(['key' => $message]);
+
+        // Citizen auth (register/login/password reset), keyed by IP.
         RateLimiter::for('auth', fn (Request $request) => Limit::perMinutes(15, 20)
             ->by($request->ip())
             ->response($tooMany));
 
+        // Admin panel login. A SEPARATE counter from citizen auth even though
+        // both are logins: a locked-out admin retrying from the municipality's
+        // shared NAT must not consume the citizen login quota for every user
+        // behind that same address.
+        RateLimiter::for('admin-auth', fn (Request $request) => Limit::perMinutes(15, 20)
+            ->by($request->ip())
+            ->response($tooMany));
+
+        // Citizen submissions, keyed by user (falling back to IP when
+        // unauthenticated) — failed logins must not eat the feedback quota.
         RateLimiter::for('public-write', fn (Request $request) => Limit::perMinutes(15, 20)
             ->by($request->user()?->id ?? $request->ip())
             ->response($tooMany));

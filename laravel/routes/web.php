@@ -11,7 +11,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
-    Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:auth')->name('login.store');
+    // throttle:admin-auth, not throttle:auth — a named limiter is one shared
+    // bucket across every route using it, and admin lockouts must not spend
+    // the citizens' login quota for the same IP (see AppServiceProvider).
+    Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:admin-auth')->name('login.store');
 
     Route::middleware('admin.session')->group(function () {
         Route::redirect('/', '/admin/new-place-requests');
