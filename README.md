@@ -8,8 +8,8 @@ The mobile app (Expo/React Native, separate repo) and this backend share
 **nothing but the HTTP+JSON contract** documented below. Changing a response
 shape breaks the app; adding a field does not.
 
-- Architecture decisions and their reasoning: [`CLAUDE.md`](CLAUDE.md)
-- Ratified specs (these overrule the code): [`backend-CLAUDE.md`](backend-CLAUDE.md), [`BACKEND.md`](BACKEND.md)
+- Ratified spec and architecture decisions — **this overrules the code**: [`CLAUDE.md`](CLAUDE.md)
+- The mobile app's planning notes and API contract reasoning: [`BACKEND.md`](BACKEND.md)
 
 ---
 

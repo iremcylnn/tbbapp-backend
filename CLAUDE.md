@@ -1,5 +1,14 @@
 # CLAUDE.md — TbbApp backend (map API)
 
+<!-- The ratified spec for this repository: it carries the decisions agreed in the TbbApp
+     (mobile) repo, whose source-of-truth planning notes live there and are mirrored here
+     in BACKEND.md. This file OVERRULES the code — where they disagree, the code is wrong.
+     Keep it in sync when decisions change.
+
+     Until 2026-07-28 this content existed twice, as backend-CLAUDE.md at the repo root and
+     as a copy inside laravel/. Flattening the repo put both at the same level, so they were
+     merged into this single file. -->
+
 This is the backend for **TbbApp**, the Tekirdağ Büyükşehir Belediyesi mobile app — an intern
 project. The mobile app (Expo/React Native, separate repo) is finished and mock-driven; this
 project is the real data source that replaces its mocks. The two applications share NOTHING but
@@ -58,12 +67,16 @@ preferences here.
   scraped page / credentialed feed) selected by config, never hardcoded in the route.
   Seeders are the mock system. A route must never call an external origin directly — source
   classes own origins.
-  - Scope of "each route": **every** read of map data (locations, categories, districts)
-    goes through `LocationSource` — including the admin panel's dropdowns and the validation
-    rules that police them. A form must not offer an option its own validator would reject,
-    so options and rules read the same source. Submission tables (feedback, new-place
-    requests, users, audit log) are write-side domain data with no mock variant; those read
-    Eloquent directly and that is correct.
+  - Scope of "each route": every read that SERVES map data goes through `LocationSource` —
+    the bootstrap endpoint, the admin panel's district/category dropdowns, and the validation
+    rules policing those dropdowns (a form must not offer an option its own validator would
+    reject, so options and rules read one source). Deliberate exception: validating a
+    submitted `location_id` uses `exists:locations,id`, because `places` is unbounded
+    (thousands of rows, and growing with every import) and materialising it into an
+    `in:` list on every write would be exactly the query-everything cost the ETag design
+    exists to avoid. Lookup tables are ~11 rows; the places table is not a lookup table.
+  - Submission tables (feedback, new-place requests, users, audit log) are write-side domain
+    data with no mock variant; those read Eloquent directly and that is correct.
   - **Read** paths live in `App\Sources`. A write-side importer that pulls from an external
     origin — the OSM/Overpass pharmacy import — lives in its own namespace (`App\Osm`)
     because it feeds the database rather than serving a request, so it has no `LocationSource`
