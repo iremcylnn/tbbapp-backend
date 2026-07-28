@@ -1,23 +1,8 @@
 services:
-  db:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: tbbapp
-      POSTGRES_PASSWORD: tbbapp_dev_password
-      POSTGRES_DB: tbbapp
-    ports:
-      - "5433:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tbbapp -d tbbapp"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # PostgreSQL 17 for the Laravel app (laravel/). Separate service + volume so the
-  # Node app's postgres:16 data above stays untouched.
+  # PostgreSQL 17 for the Laravel app. Host port 5434 so it can coexist with a
+  # native PostgreSQL install on the default 5432 — set DB_PORT to match
+  # whichever you actually use. The init script creates the test database, but
+  # only on the first initialization of the pgdata17 volume.
   db17:
     image: postgres:17
     restart: unless-stopped
@@ -36,6 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Inspection client only — ALL schema changes go through migrations.
   pgadmin:
     image: dpage/pgadmin4
     restart: unless-stopped
@@ -46,11 +32,10 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - db
+      - db17
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
 volumes:
-  pgdata:
   pgdata17:
   pgadmin_data:

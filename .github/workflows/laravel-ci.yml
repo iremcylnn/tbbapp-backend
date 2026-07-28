@@ -1,22 +1,14 @@
 name: Laravel CI
 
-# Separate workflow from the Node app's ci.yml: path filtering keeps each
-# stack's pipeline from running on the other's changes.
 on:
   push:
     branches: [master]
-    paths: ['laravel/**', '.github/workflows/laravel-ci.yml']
   pull_request:
     branches: [master]
-    paths: ['laravel/**', '.github/workflows/laravel-ci.yml']
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: laravel
 
     services:
       postgres:
